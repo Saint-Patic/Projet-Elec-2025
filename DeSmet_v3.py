@@ -3,8 +3,8 @@ from machine import Pin, Timer, I2C, ADC
 import random
 import time, sys
 from pico_i2c_lcd import I2cLcd  # Assurez-vous d'avoir installé cette bibliothèque
-import urequests  # Pour envoyer des requêtes HTTP à Firebase
-from id_counter import increment_counter  # Import the counter function
+import urequests  # Pour envoyer des requêtes HTTP à Firebase # Import the counter function
+from connexion_wifi import connect_to_wifi
 
 # Configuration de l'écran LCD
 I2C_ADDR = (
@@ -26,9 +26,7 @@ SCORE = 0  # Variable pour stocker le SCORE
 BET_AMOUNT = 10  # Somme initiale pariée
 FREQ_AFFICHEUR = NUMBER_OF_DIGITS * 100
 RUN_CODE = False
-URL_FIREBASE = (
-    "https://machine-a-sous-default-rtdb.europe-west1.firebasedatabase.app/parties.json"
-)
+URL_FIREBASE = "https://machine-a-sous-default-rtdb.europe-west1.firebasedatabase.app"
 
 # Pins for binary output to the decoder (3, 4, 5, 6)
 binary_pins = [3, 4, 5, 6]
@@ -45,13 +43,11 @@ BUTTON_PRESSED = False
 x_axis = ADC(Pin(28))
 y_axis = ADC(Pin(27))
 
-
 ###################### Firebase  ######################
 PARTIE_COUNT = 0  # Compteur d’identifiants personnalisés
 COMBINAISONS = []  # Liste de toutes les combinaisons générées
 
-
-########### Fonctions ##########
+###################### fonctions ######################
 
 
 def digits_to_binary(value):
@@ -225,10 +221,12 @@ def update_first_unplayed_game(updated_data):
     """
     Met à jour le premier élément de la base de données Firebase où 'partieJouee' est False.
     """
+    response = None
     try:
         # Récupérer toutes les données de Firebase
-        response = urequests.get(URL_FIREBASE)
-        response.raise_for_status()  # Vérifie les erreurs HTTP
+        response = urequests.get(URL_FIREBASE, timeout=10)  # Timeout de 10 secondes
+        if response.status_code != 200:
+            raise RuntimeError(f"Erreur HTTP : {response.status_code}")
         data = response.json()  # Convertit la réponse JSON en dictionnaire Python
         response.close()
 
@@ -241,7 +239,8 @@ def update_first_unplayed_game(updated_data):
                 firebase_url = f"{URL_FIREBASE}/{key}.json"
                 # Envoyer les données mises à jour
                 response = urequests.patch(firebase_url, json=updated_data)
-                response.raise_for_status()  # Vérifie les erreurs HTTP
+                if response.status_code != 200:
+                    raise RuntimeError(f"Erreur HTTP : {response.status_code}")
                 print(f"Données mises à jour pour la partie {key} :", response.text)
                 response.close()
                 return  # Arrêter après avoir mis à jour le premier élément
@@ -251,37 +250,14 @@ def update_first_unplayed_game(updated_data):
         print("Erreur réseau ou problème de connexion :", e)
     except ValueError as e:
         print("Erreur lors de la conversion JSON :", e)
-    except Exception as e:
-        print("Erreur inattendue :", e)
+    except RuntimeError as e:
+        print("Erreur HTTP :", e)
     finally:
-        try:
-            response.close()
-        except AttributeError:
-            pass
-
-
-def fetch_from_firebase():
-    """
-    Récupère les données de la base de données Firebase.
-    """
-    firebase_url = URL_FIREBASE
-    try:
-        response = urequests.get(firebase_url)
-        response.raise_for_status()  # Lève une exception pour les codes d'erreur HTTP
-        data = response.json()  # Convertit la réponse JSON en dictionnaire Python
-        print("Données récupérées depuis Firebase :", data)
-        response.close()
-        return data
-    except OSError as e:
-        print("Erreur réseau ou problème de connexion :", e)
-    except ValueError as e:
-        print("Erreur lors de la conversion JSON :", e)
-    finally:
-        try:
-            response.close()
-        except AttributeError:
-            pass
-    return None
+        if response:
+            try:
+                response.close()
+            except AttributeError:
+                pass
 
 
 # Attache l'interruption au bouton
