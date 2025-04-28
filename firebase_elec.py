@@ -5,6 +5,7 @@ import time, sys
 from pico_i2c_lcd import I2cLcd  # Assurez-vous d'avoir installé cette bibliothèque
 import urequests  # Pour envoyer des requêtes HTTP à Firebase # Import the counter function
 from connexion_wifi import connect_to_wifi
+from sept_seg import write_displays, digits, NUMBER_OF_DIGITS
 
 # Configuration de l'écran LCD
 I2C_ADDR = (
@@ -19,21 +20,11 @@ lcd = I2cLcd(i2c, I2C_ADDR, 2, 16)  # Écran LCD 2 lignes, 16 colonnes
 NUMBER_TO_GENERATE = 15  # nombres à générer
 GENERATED_COUNT = 0  # Compteur pour suivre combien de chiffres ont été générés
 RANDOM_TIMER = Timer()  # Timer pour générer les chiffres successivement
-CURRENT_DIGIT = 0
-NUMBER_OF_DIGITS = 3
-digits = [1, 2, 3]
 SCORE = 0  # Variable pour stocker le SCORE
 BET_AMOUNT = 10  # Somme initiale pariée
 FREQ_AFFICHEUR = NUMBER_OF_DIGITS * 100
 RUN_CODE = False
 URL_FIREBASE = "https://machine-a-sous-default-rtdb.europe-west1.firebasedatabase.app"
-
-# Pins for binary output to the decoder (3, 4, 5, 6)
-binary_pins = [3, 4, 5, 6]
-gpio_pins = [Pin(i, Pin.OUT) for i in binary_pins]
-
-# Pins for display selection (transistors)
-display_select_pins = [Pin(i, Pin.OUT) for i in range(0, 3)]  # GPIO 0, 1, 2
 
 # bouton pour lancer l'affichage
 button_pin = Pin(11, Pin.IN, Pin.PULL_UP)
@@ -48,60 +39,6 @@ PARTIE_COUNT = 0  # Compteur d’identifiants personnalisés
 COMBINAISONS = []  # Liste de toutes les combinaisons générées
 
 ###################### fonctions ######################
-
-
-def digits_to_binary(value):
-    """
-    Convert a value (0-9) to its binary representation as a list of bits.
-    """
-    # Ensure value is within 4-bit range (0-15)
-    value = value & 0xF  # Mask to 4-bit
-    # Return the binary representation as a list of bits
-    return [(value >> i) & 1 for i in range(4)][::-1]
-
-
-def send_binary_to_decoder(value):
-    """
-    Send a binary representation of the value (0-9) to the decoder via pins 3, 4, 5, 6.
-    """
-    global gpio_pins
-    # Get binary representation using digits_to_binary
-    binary_representation = digits_to_binary(value)
-    # Write each bit to the corresponding pin
-    for i, pin in enumerate(gpio_pins):
-        # Set the pin to the corresponding bit value (0 or 1)
-        pin.value(binary_representation[i])
-
-
-def select_display(value):
-    """
-    Activate the appropriate display by setting the corresponding transistor pins.
-    """
-    global display_select_pins
-    # Ensure value is within 3-bit range
-    value = value & 0xFF  # Mask to 3-bit
-    # Write each bit to the corresponding pin
-    for i in range(NUMBER_OF_DIGITS):
-        display_select_pins[i].value((value >> i) & 1)
-
-
-def write_displays(timer):
-    """
-    Update the displays by sending the current digit to the decoder
-    and activating the corresponding display.
-    """
-    global CURRENT_DIGIT, CURRENT_DIGIT, digits, NUMBER_OF_DIGITS
-
-    # Disable all displays first
-    select_display(0)
-    # Send the current digit to the decoder
-    send_binary_to_decoder(digits[CURRENT_DIGIT])
-    # Enable the current display
-    select_display(1 << CURRENT_DIGIT)
-    # Move to the next digit
-    CURRENT_DIGIT += 1
-    if CURRENT_DIGIT == NUMBER_OF_DIGITS:
-        CURRENT_DIGIT = 0
 
 
 def number_to_digits(number):
@@ -125,6 +62,7 @@ def generate_random(timer):
             10 ** (NUMBER_OF_DIGITS - 1), 10**NUMBER_OF_DIGITS
         )
         digits = number_to_digits(random_num)
+        print(f"Generated digits: {digits}")  # Affiche les chiffres générés
         COMBINAISONS.append(digits[:])  # copie pour éviter les effets de bord
         GENERATED_COUNT += 1
 
@@ -273,7 +211,6 @@ while 1:
             BUTTON_PRESSED = False  # Réinitialise le flag
             GENERATED_COUNT = 0  # Réinitialise le compteur
             NUMBER_TO_GENERATE = random.randint(5, 15)
-            print(NUMBER_TO_GENERATE)
             lcd.clear()
             lcd.putstr("Generating...")  # Affiche un message sur l'écran LCD
             RANDOM_TIMER.init(period=250, mode=Timer.PERIODIC, callback=generate_random)

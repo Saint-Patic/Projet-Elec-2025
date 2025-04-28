@@ -1,6 +1,5 @@
 import urequests
 import time
-from id_counter import increment_counter
 import random
 from connexion_wifi import connect_to_wifi
 
@@ -21,10 +20,12 @@ def update_first_unplayed_game(updated_data):
     try:
         # Récupérer toutes les données de Firebase
         data = fetch_from_firebase()
+        print("Données récupérées depuis Firebase :", data)
+        data = trier_dictionnaire(data)  # Trier les données par clé
+        print("Données triées :", data)
         if data is None:
             print("Aucune donnée récupérée depuis Firebase.")
             return
-
         # Trouver la première partie où 'partieJouee' est False
         for key, value in data.items():
             if not value.get(
@@ -122,6 +123,7 @@ def generate_random():
         "partieJouee": True,
         "timestamp": time.time(),
         "mise": BET_AMOUNT,
+        "partieAffichee": False,
     }
     update_first_unplayed_game(updated_data)
     GENERATED_COUNT = 0
@@ -140,6 +142,7 @@ def fetch_from_firebase():
         response = urequests.get(f"{URL_FIREBASE}/.json", headers=headers, timeout=5)
         if response.status_code != 200:
             raise RuntimeError(f"Erreur HTTP : {response.status_code}")
+        print(response)
         data = response.json()
         print("Données récupérées depuis Firebase")
         return data
@@ -158,8 +161,53 @@ def fetch_from_firebase():
     return None
 
 
+def trier_dictionnaire_personnalise(dictionnaire, critere=None):
+    """
+    Trie un dictionnaire de dictionnaires selon un critère personnalisé.
+
+    :param dictionnaire: Le dictionnaire de dictionnaires à trier.
+    :param critere: Une fonction clé pour trier les clés (optionnel).
+    :return: Un nouveau dictionnaire trié.
+    """
+    if critere is None:
+        # Trier par défaut en extrayant le numéro après "partie"
+        return dict(
+            sorted(
+                dictionnaire.items(),
+                key=lambda item: int(item[0].replace("partie", "")),
+            )
+        )
+    else:
+        # Trier selon le critère fourni
+        return dict(sorted(dictionnaire.items(), key=critere))
+
+
+def test_trie():
+    """
+    Teste le tri des données récupérées depuis Firebase.
+    """
+    try:
+        # Récupérer toutes les données de Firebase
+        data = fetch_from_firebase()
+        print(data)
+
+        if data is None:
+            print("Aucune donnée récupérée depuis Firebase.")
+            return
+
+        # Trier les données
+        new_data = trier_dictionnaire_personnalise(data)
+        print("Données triées :", new_data)
+
+        # Vérifiez si les données sont triées
+        print("Clés triées :", list(new_data.keys()))
+    except Exception as e:
+        print("Erreur lors du test de tri :", e)
+
+
 if __name__ == "__main__":
     # Exemple d'utilisation
     connect_to_wifi()
-    generate_random()
+    # generate_random()
+    test_trie()  # Uncomment to test the sorting function
     # fetch_from_firebase()  # Uncomment to fetch data from Firebase
