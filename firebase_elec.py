@@ -2,10 +2,10 @@
 from machine import Pin, Timer, I2C, ADC
 import random
 import time, sys
-from pico_i2c_lcd import I2cLcd  # Assurez-vous d'avoir installé cette bibliothèque
-import urequests  # Pour envoyer des requêtes HTTP à Firebase # Import the counter function
+from pico_i2c_lcd import I2cLcd
+import urequests
 from connexion_wifi import connect_to_wifi
-from sept_seg import write_displays, digits, NUMBER_OF_DIGITS
+from sept_seg import NUMBER_OF_DIGITS, write_displays, digits, number_to_digits
 
 # Configuration de l'écran LCD
 I2C_ADDR = (
@@ -17,7 +17,7 @@ i2c = I2C(
 lcd = I2cLcd(i2c, I2C_ADDR, 2, 16)  # Écran LCD 2 lignes, 16 colonnes
 
 ########## Variables globales ##########
-NUMBER_TO_GENERATE = 15  # nombres à générer
+NUMBER_TO_GENERATE = random.randint(5, 15)  # nombres à générer
 GENERATED_COUNT = 0  # Compteur pour suivre combien de chiffres ont été générés
 RANDOM_TIMER = Timer()  # Timer pour générer les chiffres successivement
 SCORE = 0  # Variable pour stocker le SCORE
@@ -38,17 +38,8 @@ y_axis = ADC(Pin(27))
 PARTIE_COUNT = 0  # Compteur d’identifiants personnalisés
 COMBINAISONS = []  # Liste de toutes les combinaisons générées
 
+
 ###################### fonctions ######################
-
-
-def number_to_digits(number):
-    """
-    Convert a number to an array of its digits.
-    """
-    # Convert number to string, extract digits and convert back to integers
-    digits = [int(digit) for digit in str(number)]
-    # Return the array of digits (as integers)
-    return digits
 
 
 def generate_random(timer):

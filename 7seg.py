@@ -1,8 +1,5 @@
 from machine import Pin, Timer
 
-# Pins for binary output to the decoder (3, 4, 5, 6)
-binary_pins = [3, 4, 5, 6]
-gpio_pins = [Pin(i, Pin.OUT) for i in binary_pins]
 
 # Pins for display selection (transistors)
 display_select_pins = [Pin(i, Pin.OUT) for i in range(0, 3)]  # GPIO 0, 1, 2
@@ -12,29 +9,30 @@ CURRENT_DIGIT = 0
 NUMBER_OF_DIGITS = 3
 digits = [1, 2, 3]
 
-
-def digits_to_binary(value):
-    """
-    Convert a value (0-9) to its binary representation as a list of bits.
-    """
-    # Ensure value is within 4-bit range (0-15)
-    value = value & 0xF  # Mask to 4-bit
-    # Return the binary representation as a list of bits
-    return [(value >> i) & 1 for i in range(4)][::-1]
+###################### Simulation du décodeur ######################
+# GPIOs utilisés pour simuler le décodeur
+decoder_pins = [Pin(i, Pin.OUT) for i in range(3, 10)]
 
 
-def send_binary_to_decoder(value):
+def simulate_decoder(value):
     """
-    Send a binary representation of the value (0-9) to the decoder via pins 3, 4, 5, 6.
+    Simule un décodeur en activant les GPIOs correspondants.
     """
-    global gpio_pins
-    # Get binary representation using digits_to_binary
-    binary_representation = digits_to_binary(value)
-    print(f"Sending binary {binary_representation} to decoder for value {value}")
+    decoder_values = [
+        [0, 1, 1, 1, 1, 1, 1],
+        [0, 0, 0, 0, 1, 1, 0],
+        [1, 0, 1, 1, 0, 1, 1],
+        [1, 0, 0, 1, 1, 1, 1],
+        [1, 1, 0, 0, 1, 1, 0],
+        [1, 1, 0, 1, 1, 0, 1],
+        [1, 1, 1, 1, 1, 0, 1],
+        [0, 0, 0, 0, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 0, 1, 1, 1, 1],
+    ][value][::-1]
     # Write each bit to the corresponding pin
-    for i, pin in enumerate(gpio_pins):
-        # Set the pin to the corresponding bit value (0 or 1)
-        pin.value(binary_representation[i])
+    for i, pin in enumerate(decoder_pins):
+        pin.value(decoder_values[i])
 
 
 def select_display(value):
@@ -58,11 +56,47 @@ def write_displays(timer):
 
     # Disable all displays first
     select_display(0)
-    # Send the current digit to the decoder
-    send_binary_to_decoder(digits[CURRENT_DIGIT])
+    # Send the current digit to the 7seg
+    simulate_decoder(digits[CURRENT_DIGIT])
+
     # Enable the current display
     select_display(1 << CURRENT_DIGIT)
     # Move to the next digit
     CURRENT_DIGIT += 1
     if CURRENT_DIGIT == NUMBER_OF_DIGITS:
         CURRENT_DIGIT = 0
+
+
+def number_to_digits(number):
+    """
+    Convert a number to an array of its digits.
+    """
+    # Convert number to string, extract digits and convert back to integers
+    digits = [int(digit) for digit in str(number)]
+    # Return the array of digits (as integers)
+    return digits
+
+
+if __name__ == "__main__":
+    # for i in range(29):
+    #     Pin(i, Pin.OUT).value(0)  # Set all GPIO pins to low
+    # Initialize the timer to call write_displays every 0.01 seconds
+    timer = Timer()
+    timer.init(freq=300, mode=Timer.PERIODIC, callback=write_displays)
+
+    # Keep the program running
+    try:
+        while True:
+            pass  # Main loop does nothing, just keeps the program alive
+    except KeyboardInterrupt:
+        # Stop the timer and clean up GPIO pins on exit
+        timer.deinit()
+        for pin in decoder_pins + display_select_pins:
+            pin.value(0)  # Set all pins to low
+        print("Program terminated. GPIO pins cleaned up.")
+    except Exception as e:
+        # Handle any other exceptions
+        print(f"An error occurred: {e}")
+        timer.deinit()
+        for pin in decoder_pins + display_select_pins:
+            pin.value(0)
