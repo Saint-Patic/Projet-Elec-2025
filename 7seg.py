@@ -72,9 +72,9 @@ def number_to_digits(number):
     Convert a number to an array of its digits.
     """
     # Convert number to string, extract digits and convert back to integers
-    digits = [int(digit) for digit in str(number)]
+    nb_str = [int(digit) for digit in str(number)]
     # Return the array of digits (as integers)
-    return digits
+    return nb_str
 
 
 if __name__ == "__main__":
@@ -91,12 +91,12 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         # Stop the timer and clean up GPIO pins on exit
         timer.deinit()
-        for pin in decoder_pins + display_select_pins:
-            pin.value(0)  # Set all pins to low
+        for gpio in decoder_pins + display_select_pins:
+            gpio.value(0)  # Set all pins to low
         print("Program terminated. GPIO pins cleaned up.")
     except Exception as e:
         # Handle any other exceptions
         print(f"An error occurred: {e}")
         timer.deinit()
-        for pin in decoder_pins + display_select_pins:
-            pin.value(0)
+        for gpio in decoder_pins + display_select_pins:
+            gpio.value(0)
